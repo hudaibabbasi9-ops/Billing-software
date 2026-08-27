@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="/static/css/style.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
+  <title>BillPro</title>
+</head>
+<body>
+<div class="app" id="app">
+<div class="sidebar-overlay" id="sb-overlay" onclick="closeSidebar()"></div>
+
+<!-- LOGIN -->
+<div class="overlay" id="login-overlay" style="display:flex">
+  <div class="modal">
+    <div class="modal-hdr"><h2><i class="ti ti-lock"></i>Sign in to BillPro</h2></div>
+    <div class="fg"><label>Username</label><input type="text" id="l-user" placeholder="Enter username" autocomplete="username"></div>
+    <div class="fg"><label>Password</label><input type="password" id="l-pass" placeholder="Enter password"></div>
+    <div id="l-err" style="font-size:11px;color:var(--red);margin-bottom:.75rem;display:none;padding:8px 10px;background:var(--red-bg);border-radius:var(--r)"><i class="ti ti-alert-circle"></i> Invalid username or password.</div>
+    <button class="btn btn-p" style="width:100%;justify-content:center;padding:10px" onclick="doLogin()"><i class="ti ti-login"></i>Sign In</button>
+    <p style="font-size:11px;color:var(--t3);margin-top:1rem;text-align:center">Default — user: <strong>admin</strong> &nbsp;/&nbsp; pass: <strong>admin123</strong></p>
+  </div>
+</div>
+
+<!-- EDIT INVOICE MODAL -->
+<div class="overlay" id="edit-overlay" style="display:none">
+  <div class="modal modal-lg">
+    <div class="modal-hdr">
+      <h2><i class="ti ti-edit"></i>Edit Invoice <span id="edit-inv-num" style="color:var(--blue)"></span></h2>
+      <button class="btn btn-sm btn-icon" onclick="closeEdit()"><i class="ti ti-x"></i></button>
+    </div>
+    <div class="fgrid" style="margin-bottom:.9rem">
+      <div class="fg"><label>Customer Name *</label><input type="text" id="ei-cust"></div>
+      <div class="fg"><label>Phone</label><input type="tel" id="ei-phone" placeholder="+1 234 567 8900"></div>
+      <div class="fg"><label>Invoice Date</label><input type="date" id="ei-date"></div>
+      <div class="fg"><label>Due Date</label><input type="date" id="ei-due"></div>
+      <div class="fg"><label>Status</label>
+        <select id="ei-status">
+          <option value="unpaid">Unpaid</option>
+          <option value="paid">Paid</option>
+          <option value="overdue">Overdue</option>
+        </select>
+      </div>
+    </div>
+    <div style="font-size:12px;font-weight:700;margin-bottom:.5rem;text-transform:uppercase;color:var(--t2);letter-spacing:.4px">Line Items</div>
+    <div class="table-wrap"><table class="lit">
+      <thead><tr><th style="width:44%">Description</th><th style="width:12%">Qty</th><th style="width:16%">Rate</th><th style="width:16%">Amount</th><th style="width:12%"></th></tr></thead>
+      <tbody id="ei-li-body"></tbody>
+    </table></div>
+    <button class="btn btn-sm" style="margin-top:7px" onclick="addELI()"><i class="ti ti-plus"></i>Add row</button>
+    <div class="totbox" style="max-width:280px;margin-left:auto">
+      <div class="tr-r"><span>Subtotal</span><span id="ei-sub">$0.00</span></div>
+      <div class="tr-r"><span id="ei-tax-lbl">Tax</span><span id="ei-tax">$0.00</span></div>
+      <div class="tr-r"><span>Discount</span>
+        <span class="disc-row">-<span id="ei-sym">$</span><input type="number" id="ei-disc" value="0" min="0" step="0.01" oninput="calcE()"></span>
+      </div>
+      <div class="tr-r grand"><span>Total</span><span id="ei-total">$0.00</span></div>
+    </div>
+    <div class="fg" style="margin-top:.9rem"><label>Notes</label><textarea id="ei-notes" rows="2"></textarea></div>
+    <div style="display:flex;gap:7px;margin-top:.9rem">
+      <button class="btn btn-p" onclick="saveEdit()"><i class="ti ti-check"></i>Save Changes</button>
+      <button class="btn" onclick="closeEdit()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- CUSTOMER DETAIL MODAL -->
+<div class="overlay" id="cust-modal-overlay" style="display:none">
+  <div id="cust-modal-body"></div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<!-- SIDEBAR -->
+<div class="sidebar" id="sidebar">
+  <div class="logo"><i class="ti ti-receipt-2"></i>BillPro</div>
+  <div class="nav-area">
+    <div class="nav-item active" onclick="nav('dashboard',this)"><i class="ti ti-layout-dashboard"></i>Dashboard</div>
+    <div class="nav-item" onclick="nav('invoices',this)"><i class="ti ti-file-invoice"></i>Invoices</div>
+    <div class="nav-item" onclick="nav('new-invoice',this)"><i class="ti ti-plus"></i>New Invoice</div>
+    <div class="nav-item" onclick="nav('customers',this)"><i class="ti ti-users"></i>Customers</div>
+    <div class="nav-item" onclick="nav('payments',this)"><i class="ti ti-credit-card"></i>Payments</div>
+    <div class="nav-item" onclick="nav('live-feed',this)"><i class="ti ti-activity"></i>Live Feed
+      <span id="feed-badge" style="display:none;background:var(--red-bg);color:var(--red);font-size:10px;padding:1px 6px;border-radius:99px;margin-left:auto">0</span>
+    </div>
+  </div>
+  <button class="admin-btn" id="admin-btn" style="display:none" onclick="toggleAdmin()"><i class="ti ti-shield-lock"></i>Admin Panel</button>
+</div>
+
+<!-- ADMIN PANEL -->
+<div class="admin-panel" id="admin-panel" style="display:none">
+  <div class="ap-hdr">
+    <span style="font-size:13px;font-weight:700;display:flex;align-items:center;gap:7px"><i class="ti ti-shield-lock"></i>Admin Panel</span>
+    <button class="btn btn-sm btn-icon" onclick="document.getElementById('admin-panel').style.display='none'"><i class="ti ti-x"></i></button>
+  </div>
+  <div class="ap-tabs">
+    <div class="ap-tab active" onclick="apTab('items',this)">Items</div>
+    <div class="ap-tab" onclick="apTab('users',this)">Users</div>
+    <div class="ap-tab" onclick="apTab('settings',this)">Settings</div>
+  </div>
+  <div class="ap-body">
+    <!-- ITEMS -->
+    <div id="ap-items">
+      <div style="display:flex;gap:6px;margin-bottom:.85rem">
+        <input type="text" id="item-name" placeholder="Item / service name" style="flex:1">
+        <input type="number" id="item-price" placeholder="Price" style="width:85px" min="0" step="0.01">
+        <button class="btn btn-p btn-sm" onclick="addItem()"><i class="ti ti-plus"></i>Add</button>
+      </div>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Item</th><th>Price</th><th></th></tr></thead>
+        <tbody id="items-list"><tr><td colspan="3" class="empty" style="padding:1rem">No items yet.</td></tr></tbody>
+      </table></div>
+    </div>
+    <!-- USERS -->
+    <div id="ap-users" style="display:none">
+      <div class="fgrid" style="margin-bottom:.75rem">
+        <div class="fg"><label>Username</label><input type="text" id="nu-user" placeholder="username"></div>
+        <div class="fg"><label>Password</label><input type="password" id="nu-pass" placeholder="password"></div>
+        <div class="fg"><label>Full Name</label><input type="text" id="nu-name" placeholder="Full name"></div>
+        <div class="fg"><label>Role</label><select id="nu-role"><option value="user">User</option><option value="admin">Admin</option></select></div>
+      </div>
+      <button class="btn btn-p btn-sm" onclick="addUser()" style="margin-bottom:.85rem"><i class="ti ti-plus"></i>Add User</button>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Username</th><th>Name</th><th>Role</th><th></th></tr></thead>
+        <tbody id="users-list"></tbody>
+      </table></div>
+    </div>
+    <!-- SETTINGS -->
+    <div id="ap-settings" style="display:none">
+      <div class="fgrid">
+        <div class="fg"><label>Company Name</label><input type="text" id="cfg-company" placeholder="My Business"></div>
+        <div class="fg"><label>Tax Rate (%)</label><input type="number" id="cfg-tax" placeholder="10" min="0" step="0.1"></div>
+        <div class="fg"><label>Currency Symbol</label><input type="text" id="cfg-cur" placeholder="$" style="max-width:70px"></div>
+        <div class="fg"><label>Invoice Prefix</label><input type="text" id="cfg-pfx" placeholder="INV-"></div>
+      </div>
+      <div class="fg"><label>Company Address</label><input type="text" id="cfg-addr" placeholder="123 Main St, City"></div>
+      <div class="fgrid">
+        <div class="fg"><label>Phone</label><input type="text" id="cfg-phone" placeholder="+1 234 567 8900"></div>
+        <div class="fg"><label>Email</label><input type="email" id="cfg-email" placeholder="info@company.com"></div>
+      </div>
+      <button class="btn btn-p btn-sm" onclick="saveCfg()"><i class="ti ti-check"></i>Save Settings</button>
+    </div>
+  </div>
+</div>
+
+<!-- MAIN -->
+<div class="main">
+  <div class="topbar">
+    <div style="display:flex;align-items:center;gap:10px">
+      <button class="menu-btn" onclick="openSidebar()"><i class="ti ti-menu-2" style="font-size:20px"></i></button>
+      <span style="font-size:14px;font-weight:700" id="page-title">Dashboard</span>
+      <span class="user-chip" id="cur-user-badge"></span>
+    </div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap">
+      <button class="btn btn-p btn-sm" onclick="nav('new-invoice',document.querySelectorAll('.nav-item')[2])"><i class="ti ti-plus"></i><span class="hide-xs">New Invoice</span></button>
+      <button class="btn btn-sm" onclick="doLogout()"><i class="ti ti-logout"></i><span class="hide-xs">Logout</span></button>
+    </div>
+  </div>
+
+  <div class="content">
+
+    <!-- DASHBOARD -->
+    <div class="page active" id="page-dashboard">
+      <div class="metrics">
+        <div class="mc"><div class="mc-label">Total Revenue</div><div class="mc-val" id="m-rev">$0.00</div><div class="mc-sub">Paid invoices</div></div>
+        <div class="mc"><div class="mc-label">Outstanding</div><div class="mc-val" id="m-out">$0.00</div><div class="mc-sub">Unpaid invoices</div></div>
+        <div class="mc"><div class="mc-label">Invoices</div><div class="mc-val" id="m-cnt">0</div><div class="mc-sub">Total issued</div></div>
+        <div class="mc"><div class="mc-label">Customers</div><div class="mc-val" id="m-cust">0</div><div class="mc-sub">Active clients</div></div>
+      </div>
+      <div class="card">
+        <div class="ch">
+          <span class="ct">Recent Invoices</span>
+          <button class="btn btn-sm btn-blue" onclick="nav('invoices',document.querySelectorAll('.nav-item')[1])"><i class="ti ti-arrow-right"></i>View all</button>
+        </div>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Invoice #</th><th>Customer</th><th>By</th><th>Date</th><th>Amount</th><th>Status</th></tr></thead>
+          <tbody id="dash-inv"><tr><td colspan="6" class="empty"><i class="ti ti-file-off"></i>No invoices yet</td></tr></tbody>
+        </table></div>
+      </div>
+    </div>
+
+    <!-- INVOICES -->
+    <div class="page" id="page-invoices">
+      <div style="display:flex;gap:8px;margin-bottom:.9rem;flex-wrap:wrap">
+        <input type="text" id="inv-search" placeholder="🔍 Search by name or #…" style="max-width:260px;flex:1" oninput="renderInvoices()">
+        <select id="inv-filter" style="max-width:130px" onchange="renderInvoices()">
+          <option value="">All statuses</option>
+          <option value="unpaid">Unpaid</option>
+          <option value="paid">Paid</option>
+          <option value="overdue">Overdue</option>
+        </select>
+      </div>
+      <div class="card">
+        <div class="ch"><span class="ct">All Invoices</span><span id="inv-count-lbl" style="font-size:11px;color:var(--t3)"></span></div>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Invoice #</th><th>Customer</th><th>Created By</th><th>Date</th><th>Due</th><th>Amount</th><th>Status</th><th>Actions</th></tr></thead>
+          <tbody id="inv-body"><tr><td colspan="8" class="empty"><i class="ti ti-file-off"></i>No invoices</td></tr></tbody>
+        </table></div>
+      </div>
+    </div>
+
+    <!-- NEW INVOICE -->
+    <div class="page" id="page-new-invoice">
+      <div class="card">
+        <div class="ch"><span class="ct"><i class="ti ti-file-plus" style="color:var(--blue)"></i> Create New Invoice</span></div>
+        <div class="fgrid" style="margin-bottom:.9rem">
+          <div class="fg"><label>Customer Name *</label><input type="text" id="ni-cust" placeholder="Acme Corporation"></div>
+          <div class="fg"><label>Customer Phone</label><input type="tel" id="ni-phone" placeholder="+1 234 567 8900"></div>
+          <div class="fg"><label>Invoice Date</label><input type="date" id="ni-date"></div>
+          <div class="fg"><label>Due Date</label><input type="date" id="ni-due"></div>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.6rem;flex-wrap:wrap;gap:6px">
+          <span style="font-size:12px;font-weight:700;text-transform:uppercase;color:var(--t2);letter-spacing:.4px">Line Items</span>
+          <span style="font-size:11px;color:var(--t3)">Type description + Enter to search catalog • Enter moves to next field</span>
+        </div>
+        <div style="position:relative">
+          <div class="table-wrap"><table class="lit" id="ni-table">
+            <thead><tr><th style="width:42%">Description</th><th style="width:10%">Qty</th><th style="width:15%">Rate</th><th style="width:15%">Amount</th><th style="width:18%"></th></tr></thead>
+            <tbody id="li-body"></tbody>
+          </table></div>
+          <div id="ac-box" class="ac-list"></div>
+        </div>
+        <button class="btn btn-sm" style="margin-top:8px" onclick="addLI()"><i class="ti ti-plus"></i>Add row</button>
+        <div style="display:flex;justify-content:flex-end;margin-top:.85rem">
+          <div class="totbox" style="width:290px">
+            <div class="tr-r"><span>Subtotal</span><span id="ni-sub">$0.00</span></div>
+            <div class="tr-r"><span id="ni-tax-lbl">Tax (10%)</span><span id="ni-tax">$0.00</span></div>
+            <div class="tr-r">
+              <span>Discount</span>
+              <span class="disc-row">-<span id="ni-sym">$</span><input type="number" id="ni-disc" value="0" min="0" step="0.01" oninput="calcN()" onkeydown="discKey(event)" placeholder="0"></span>
+            </div>
+            <div class="tr-r grand"><span>Total</span><span id="ni-total">$0.00</span></div>
+          </div>
+        </div>
+        <div class="fg" style="margin-top:.9rem"><label>Notes / Payment Terms</label>
+          <textarea id="ni-notes" placeholder="Payment due within 30 days. Thank you for your business!"></textarea>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:.9rem;flex-wrap:wrap">
+          <button class="btn btn-p" id="save-btn" onclick="saveInvoice()"><i class="ti ti-check"></i>Save Invoice</button>
+          <button class="btn" onclick="nav('invoices',document.querySelectorAll('.nav-item')[1])"><i class="ti ti-x"></i>Cancel</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- CUSTOMERS -->
+    <div class="page" id="page-customers">
+      <div class="card" style="margin-bottom:.9rem">
+        <div class="ch"><span class="ct">Add Customer</span></div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <input type="text" id="nc-name" placeholder="Full name / Company" style="flex:1;min-width:140px">
+          <input type="email" id="nc-email" placeholder="Email" style="flex:1;min-width:160px">
+          <input type="tel" id="nc-phone" placeholder="Phone" style="flex:1;min-width:120px">
+          <button class="btn btn-p btn-sm" onclick="addCustomer()"><i class="ti ti-plus"></i>Add</button>
+        </div>
+      </div>
+      <div class="card">
+        <div class="ch"><span class="ct">All Customers</span></div>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>Total Invoiced</th><th># Invoices</th><th>Actions</th></tr></thead>
+          <tbody id="cust-body"><tr><td colspan="6" class="empty"><i class="ti ti-users-off"></i>No customers yet</td></tr></tbody>
+        </table></div>
+      </div>
+    </div>
+
+    <!-- PAYMENTS -->
+    <div class="page" id="page-payments">
+      <div class="card">
+        <div class="ch"><span class="ct">Pending Payments</span></div>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Invoice #</th><th>Customer</th><th>Amount</th><th>Due Date</th><th>Status</th><th>Actions</th></tr></thead>
+          <tbody id="pay-body"><tr><td colspan="6" class="empty"><i class="ti ti-checks"></i>No pending payments</td></tr></tbody>
+        </table></div>
+      </div>
+    </div>
+
+    <!-- LIVE FEED -->
+    <div class="page" id="page-live-feed">
+      <div class="card">
+        <div class="ch">
+          <span class="ct"><span class="fdot"></span>Live Invoice Feed</span>
+          <span style="font-size:11px;color:var(--t3)">All users • Updates in real-time</span>
+        </div>
+        <div id="live-feed-list"><div class="empty"><i class="ti ti-activity"></i>No activity yet</div></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+</div>
+<script src="/static/js/app.js"></script>
+</body>
+</html>
