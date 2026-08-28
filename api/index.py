@@ -1,8 +1,4 @@
-"""Vercel entry point for BillPro.
-
-The original Flask application is kept in the legacy nested project folder.
-This wrapper loads it and fixes the static/template paths for deployment.
-"""
+"""Vercel entry point for BillPro."""
 import importlib.util
 import os
 import sys
@@ -21,8 +17,7 @@ spec.loader.exec_module(module)
 
 app = module.app
 
-# Billpro.py was originally written for local execution. Its relative
-# static/template paths therefore point inside api/. Correct them for Vercel.
+# Correct Flask asset/template locations for the repository-root Vercel deployment.
 app.static_folder = os.path.join(APP_DIR, "static")
 app.template_folder = os.path.join(APP_DIR, "templates")
 try:
@@ -31,4 +26,12 @@ try:
 except Exception:
     pass
 
-# Vercel imports this module and uses the Flask `app` WSGI object.
+# The legacy / route uses its old BASE path. Replace that view with a deployment-safe one.
+from flask import send_file
+
+def vercel_index():
+    return send_file(os.path.join(APP_DIR, "templates", "index.html"))
+
+app.view_functions["index"] = vercel_index
+
+# Vercel imports this Flask `app` as the WSGI application.
